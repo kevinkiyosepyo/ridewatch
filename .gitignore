@@ -1,0 +1,14 @@
+/ridewatch
+/bin/
+/data/
+*.pb
+*.pb.gz
+.env
+*.tfstate
+*.tfstate.backup
+.terraform/
+.tofu/
+*.tfvars
+!example.tfvars
+.DS_Store
+coverage.out
