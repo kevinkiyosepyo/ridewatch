@@ -18,9 +18,18 @@ import (
 // by ctx (attach a deadline for a timeout). A non-200 response is an error.
 // Returns the final file path and the full hex sha256 of the bytes.
 func Download(ctx context.Context, url, destDir string) (string, string, error) {
+	return DownloadAuth(ctx, url, destDir, "", "")
+}
+
+// DownloadAuth is Download plus one auth header ("headerName: headerValue"
+// when both are non-empty), for agencies that key their static feed.
+func DownloadAuth(ctx context.Context, url, destDir, headerName, headerValue string) (string, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", "", fmt.Errorf("gtfsstatic: build request for %s: %w", url, err)
+	}
+	if headerName != "" && headerValue != "" {
+		req.Header.Set(headerName, headerValue)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

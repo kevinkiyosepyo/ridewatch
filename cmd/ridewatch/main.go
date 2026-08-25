@@ -129,7 +129,7 @@ func runLoadStatic(ctx context.Context) error {
 // live next to the raw archive: together they are the system of record.
 func loadStatic(ctx context.Context, cfg config.Config, st *store.Store) error {
 	destDir := filepath.Join(cfg.ArchiveDir, "static")
-	zipPath, sha, err := gtfsstatic.Download(ctx, cfg.StaticGTFSURL, destDir)
+	zipPath, sha, err := gtfsstatic.DownloadAuth(ctx, cfg.StaticGTFSURL, destDir, cfg.FeedAPIKeyHeader, cfg.FeedAPIKey)
 	if err != nil {
 		metrics.ScheduleLoads.WithLabelValues("error").Inc()
 		return fmt.Errorf("download static GTFS: %w", err)
@@ -249,8 +249,10 @@ func runServe(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 	for _, pc := range []ingest.PollerConfig{
-		{Feed: domain.FeedVehiclePositions, URL: cfg.VehiclePositionsURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir},
-		{Feed: domain.FeedTripUpdates, URL: cfg.TripUpdatesURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir},
+		{Feed: domain.FeedVehiclePositions, URL: cfg.VehiclePositionsURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir,
+			APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey},
+		{Feed: domain.FeedTripUpdates, URL: cfg.TripUpdatesURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir,
+			APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey},
 	} {
 		p := ingest.NewPoller(pc, st, engine.Process)
 		wg.Add(1)

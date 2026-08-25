@@ -30,6 +30,11 @@ type PollerConfig struct {
 	URL        string
 	Interval   time.Duration
 	ArchiveDir string // root; poller writes blobs under it
+
+	// Sent as "APIKeyHeader: APIKey" on every fetch when both are set, for
+	// agencies that key their feeds (e.g. WMATA's api_key header).
+	APIKeyHeader string
+	APIKey       string
 }
 
 // Poller polls one GTFS-RT feed on a fixed interval.
@@ -161,6 +166,9 @@ func (p *Poller) fetch(ctx context.Context) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.cfg.URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if p.cfg.APIKeyHeader != "" && p.cfg.APIKey != "" {
+		req.Header.Set(p.cfg.APIKeyHeader, p.cfg.APIKey)
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {

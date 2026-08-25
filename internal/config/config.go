@@ -21,6 +21,12 @@ type Config struct {
 	PollInterval        time.Duration // spec: 15s
 	StaticRefreshEvery  time.Duration // how often to check the static zip for a new version
 
+	// Feed auth, for agencies that key their feeds (e.g. WMATA). When
+	// FeedAPIKey is set it is sent as the FeedAPIKeyHeader header on every
+	// feed request — header, not URL, so keys never end up in logs.
+	FeedAPIKey       string
+	FeedAPIKeyHeader string // header name; default "api_key" (WMATA's)
+
 	// Raw archive.
 	ArchiveDir       string
 	RawRetentionDays int // prune raw blobs older than this; 0 = keep forever
@@ -56,6 +62,8 @@ func Load() (Config, error) {
 		StaticGTFSURL:       env("STATIC_GTFS_URL", "https://cdn.mbta.com/MBTA_GTFS.zip"),
 		VehiclePositionsURL: env("VEHICLE_POSITIONS_URL", "https://cdn.mbta.com/realtime/VehiclePositions.pb"),
 		TripUpdatesURL:      env("TRIP_UPDATES_URL", "https://cdn.mbta.com/realtime/TripUpdates.pb"),
+		FeedAPIKey:          os.Getenv("FEED_API_KEY"),
+		FeedAPIKeyHeader:    env("FEED_API_KEY_HEADER", "api_key"),
 		ArchiveDir:          env("ARCHIVE_DIR", "./data/raw"),
 		ListenAddr:          env("LISTEN_ADDR", ":8080"),
 		PublicURL:           env("PUBLIC_URL", "http://localhost:8080"),
