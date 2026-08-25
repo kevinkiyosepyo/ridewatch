@@ -14,7 +14,9 @@ type Config struct {
 	// Postgres, e.g. postgres://user:pass@host:5432/ridewatch
 	DatabaseURL string
 
-	// Feeds.
+	// Feeds. Each URL may be a comma-separated list for agencies that split
+	// modes into separate feeds (e.g. WMATA bus + rail): the static zips are
+	// merged into one schedule version and every realtime URL gets a poller.
 	StaticGTFSURL       string
 	VehiclePositionsURL string
 	TripUpdatesURL      string

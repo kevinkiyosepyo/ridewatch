@@ -9,6 +9,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -124,15 +127,45 @@ func runLoadStatic(ctx context.Context) error {
 	return loadStatic(ctx, cfg, st)
 }
 
-// loadStatic downloads the static GTFS zip and loads it as a new active
-// schedule version; a zip already loaded (same sha256) is a no-op. The zips
-// live next to the raw archive: together they are the system of record.
+// splitList parses a comma-separated URL list, trimming blanks.
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// loadStatic downloads every static GTFS zip in STATIC_GTFS_URL and loads
+// them together as one new active schedule version (multi-modal agencies like
+// WMATA split bus and rail into separate zips with disjoint id spaces); a
+// combination already loaded is a no-op. The zips live next to the raw
+// archive: together they are the system of record.
 func loadStatic(ctx context.Context, cfg config.Config, st *store.Store) error {
 	destDir := filepath.Join(cfg.ArchiveDir, "static")
-	zipPath, sha, err := gtfsstatic.DownloadAuth(ctx, cfg.StaticGTFSURL, destDir, cfg.FeedAPIKeyHeader, cfg.FeedAPIKey)
-	if err != nil {
-		metrics.ScheduleLoads.WithLabelValues("error").Inc()
-		return fmt.Errorf("download static GTFS: %w", err)
+	urls := splitList(cfg.StaticGTFSURL)
+	if len(urls) == 0 {
+		return errors.New("STATIC_GTFS_URL is empty")
+	}
+	var zipPaths []string
+	var shas []string
+	for _, u := range urls {
+		zipPath, sha, err := gtfsstatic.DownloadAuth(ctx, u, destDir, cfg.FeedAPIKeyHeader, cfg.FeedAPIKey)
+		if err != nil {
+			metrics.ScheduleLoads.WithLabelValues("error").Inc()
+			return fmt.Errorf("download static GTFS: %w", err)
+		}
+		zipPaths = append(zipPaths, zipPath)
+		shas = append(shas, sha)
+	}
+	// The version's identity is the single zip's sha, or a hash over all of
+	// them — any zip changing produces a new version.
+	sha := shas[0]
+	if len(shas) > 1 {
+		sum := sha256.Sum256([]byte(strings.Join(shas, ",")))
+		sha = hex.EncodeToString(sum[:])
 	}
 
 	load, err := st.NewScheduleLoad(ctx, sha, time.Now())
@@ -145,10 +178,12 @@ func loadStatic(ctx context.Context, cfg config.Config, st *store.Store) error {
 		metrics.ScheduleLoads.WithLabelValues("error").Inc()
 		return err
 	}
-	if err := gtfsstatic.ParseZip(zipPath, load); err != nil {
-		_ = load.Abort(ctx)
-		metrics.ScheduleLoads.WithLabelValues("error").Inc()
-		return fmt.Errorf("parse static GTFS: %w", err)
+	for _, zipPath := range zipPaths {
+		if err := gtfsstatic.ParseZip(zipPath, load); err != nil {
+			_ = load.Abort(ctx)
+			metrics.ScheduleLoads.WithLabelValues("error").Inc()
+			return fmt.Errorf("parse static GTFS %s: %w", filepath.Base(zipPath), err)
+		}
 	}
 	id, err := load.Commit(ctx)
 	if err != nil {
@@ -157,7 +192,7 @@ func loadStatic(ctx context.Context, cfg config.Config, st *store.Store) error {
 		return fmt.Errorf("commit static GTFS load: %w", err)
 	}
 	metrics.ScheduleLoads.WithLabelValues("loaded").Inc()
-	slog.Info("static GTFS loaded", "version", id, "sha256", sha[:8])
+	slog.Info("static GTFS loaded", "version", id, "zips", len(zipPaths), "sha256", sha[:8])
 	return nil
 }
 
@@ -247,13 +282,23 @@ func runServe(ctx context.Context) error {
 
 	engine := reconcile.NewEngine(st, st, reconcile.Options{FinalizeGrace: cfg.FinalizeGrace})
 
+	// One poller per URL; a comma-separated list (e.g. WMATA bus + rail) gets
+	// one poller each, all feeding the same engine. Their blobs interleave in
+	// the same per-feed archive, which replay handles by design.
+	var pollerCfgs []ingest.PollerConfig
+	for _, u := range splitList(cfg.VehiclePositionsURL) {
+		pollerCfgs = append(pollerCfgs, ingest.PollerConfig{
+			Feed: domain.FeedVehiclePositions, URL: u, Interval: cfg.PollInterval,
+			ArchiveDir: cfg.ArchiveDir, APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey})
+	}
+	for _, u := range splitList(cfg.TripUpdatesURL) {
+		pollerCfgs = append(pollerCfgs, ingest.PollerConfig{
+			Feed: domain.FeedTripUpdates, URL: u, Interval: cfg.PollInterval,
+			ArchiveDir: cfg.ArchiveDir, APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey})
+	}
+
 	var wg sync.WaitGroup
-	for _, pc := range []ingest.PollerConfig{
-		{Feed: domain.FeedVehiclePositions, URL: cfg.VehiclePositionsURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir,
-			APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey},
-		{Feed: domain.FeedTripUpdates, URL: cfg.TripUpdatesURL, Interval: cfg.PollInterval, ArchiveDir: cfg.ArchiveDir,
-			APIKeyHeader: cfg.FeedAPIKeyHeader, APIKey: cfg.FeedAPIKey},
-	} {
+	for _, pc := range pollerCfgs {
 		p := ingest.NewPoller(pc, st, engine.Process)
 		wg.Add(1)
 		go func() {
