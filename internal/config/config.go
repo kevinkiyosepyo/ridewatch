@@ -33,7 +33,7 @@ type Config struct {
 	FinalizeGrace time.Duration // how long after the last prediction passes before an event is frozen
 
 	// Rollups.
-	RollupHourUTC  int // nightly rollup trigger hour (UTC)
+	RollupHourUTC     int // nightly rollup trigger hour (UTC)
 	RollupWindowWeeks int
 
 	// HTTP.

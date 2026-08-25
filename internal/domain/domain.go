@@ -43,15 +43,15 @@ type TripUpdate struct {
 
 // StopTimeUpdate is one stop's prediction within a TripUpdate.
 type StopTimeUpdate struct {
-	StopSequence     int    // -1 if absent (resolve via StopID against the schedule)
-	StopID           string // "" if absent (resolve via StopSequence)
-	ArrivalTime      int64  // unix seconds; 0 if absent
-	ArrivalDelay     int32
-	ArrivalDelaySet  bool
-	DepartureTime    int64
-	DepartureDelay   int32
+	StopSequence      int    // -1 if absent (resolve via StopID against the schedule)
+	StopID            string // "" if absent (resolve via StopSequence)
+	ArrivalTime       int64  // unix seconds; 0 if absent
+	ArrivalDelay      int32
+	ArrivalDelaySet   bool
+	DepartureTime     int64
+	DepartureDelay    int32
 	DepartureDelaySet bool
-	Relationship     string // "SCHEDULED", "SKIPPED", "NO_DATA"
+	Relationship      string // "SCHEDULED", "SKIPPED", "NO_DATA"
 }
 
 // VehiclePosition is a decoded GTFS-RT VehiclePosition entity.
@@ -146,13 +146,13 @@ func (s ScheduledStop) BestSecs() int {
 // Static reference rows used by the loader and read queries.
 
 type Route struct {
-	RouteID    string
-	ShortName  string
-	LongName   string
-	RouteType  int
-	Color      string
-	TextColor  string
-	SortOrder  int
+	RouteID   string
+	ShortName string
+	LongName  string
+	RouteType int
+	Color     string
+	TextColor string
+	SortOrder int
 }
 
 type Stop struct {
