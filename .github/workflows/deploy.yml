@@ -1,0 +1,54 @@
+# Tagging vX.Y.Z builds the multi-arch image to GHCR, then rolls the k3s
+# Deployment over SSH.
+#
+# Repository secrets required by the deploy job:
+#   DEPLOY_HOST     the instance's public IP or hostname (tofu output)
+#   DEPLOY_USER     SSH user, "ubuntu" on the OCI image
+#   DEPLOY_SSH_KEY  private key matching tofu's ssh_authorized_key
+name: Deploy
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Roll the deployment
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        run: |
+          install -m 600 /dev/null key
+          printf '%s\n' "$DEPLOY_SSH_KEY" > key
+          # "migrate" is the init container; set image covers it by name too.
+          ssh -i key -o StrictHostKeyChecking=accept-new "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo k3s kubectl -n ridewatch set image deployment/ridewatch ridewatch=$IMAGE migrate=$IMAGE \
+             && sudo k3s kubectl -n ridewatch rollout status deployment/ridewatch --timeout=300s"

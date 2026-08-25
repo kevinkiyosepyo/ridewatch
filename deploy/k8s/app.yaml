@@ -1,0 +1,119 @@
+# The RideWatch app: one Deployment replica with strategy Recreate — the GTFS-RT
+# poller is a singleton and two pods polling at once would double-write.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ridewatch-config
+  namespace: ridewatch
+data:
+  # Set DOMAIN to your real domain before applying: Caddy serves the site on it
+  # (and Grafana on grafana.<DOMAIN>), and PUBLIC_URL should match it.
+  DOMAIN: ridewatch.example.com
+  PUBLIC_URL: https://ridewatch.example.com
+  ARCHIVE_DIR: /data/raw
+  LISTEN_ADDR: ":8080"
+  VAPID_SUBJECT: mailto:admin@example.com
+  # Feed defaults target the MBTA's keyless public feeds. Uncomment and point
+  # at any other agency publishing GTFS + GTFS-Realtime to track it instead.
+  # STATIC_GTFS_URL: https://cdn.mbta.com/MBTA_GTFS.zip
+  # VEHICLE_POSITIONS_URL: https://cdn.mbta.com/realtime/VehiclePositions.pb
+  # TRIP_UPDATES_URL: https://cdn.mbta.com/realtime/TripUpdates.pb
+  # POLL_INTERVAL: 15s
+---
+# Raw GTFS-RT archive: the system of record for replays.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ridewatch-data
+  namespace: ridewatch
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ridewatch
+  namespace: ridewatch
+  labels:
+    app: ridewatch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ridewatch
+  template:
+    metadata:
+      labels:
+        app: ridewatch
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 65532 # distroless nonroot uid/gid, so /data is writable
+      initContainers:
+        - name: migrate
+          image: ghcr.io/kevinkiyosepyo/ridewatch:latest
+          command: ["/ridewatch", "migrate"]
+          envFrom:
+            - configMapRef:
+                name: ridewatch-config
+            - secretRef:
+                name: ridewatch-secrets
+      containers:
+        - name: ridewatch
+          image: ghcr.io/kevinkiyosepyo/ridewatch:latest
+          # image defaults to CMD ["serve"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ridewatch-config
+            - secretRef:
+                name: ridewatch-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ridewatch-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ridewatch
+  namespace: ridewatch
+  labels:
+    app: ridewatch
+spec:
+  type: ClusterIP
+  selector:
+    app: ridewatch
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

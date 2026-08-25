@@ -1,0 +1,89 @@
+# Caddy terminates TLS on the node's ports 80/443 (hostPort — this is a
+# single-node k3s cluster) with automatic Let's Encrypt certificates, and
+# reverse-proxies the site to the app and grafana.<DOMAIN> to Grafana.
+# /metrics is blocked externally; Prometheus scrapes it inside the cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+  namespace: ridewatch
+data:
+  Caddyfile: |
+    {$DOMAIN} {
+      @metrics path /metrics
+      respond @metrics 403
+      reverse_proxy ridewatch:8080
+    }
+
+    grafana.{$DOMAIN} {
+      reverse_proxy grafana:3000
+    }
+---
+# Let's Encrypt account + certificates; losing this on restart would hit LE
+# rate limits, so it persists.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-data
+  namespace: ridewatch
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  namespace: ridewatch
+  labels:
+    app: caddy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # hostPorts 80/443 exist once per node
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      containers:
+        - name: caddy
+          image: caddy:2-alpine
+          ports:
+            - name: http
+              containerPort: 80
+              hostPort: 80
+            - name: https
+              containerPort: 443
+              hostPort: 443
+          env:
+            # The site's domain; Caddy obtains and renews its certificate.
+            - name: DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ridewatch-config
+                  key: DOMAIN
+          volumeMounts:
+            - name: config
+              mountPath: /etc/caddy
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: caddy-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: caddy-data

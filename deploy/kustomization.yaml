@@ -1,0 +1,23 @@
+# The whole stack: `kubectl apply -k deploy/`. Sits above k8s/ so the
+# observability files can be generated into ConfigMaps from their canonical
+# copies in observability/ (kustomize refuses files outside its root).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ridewatch
+resources:
+  - k8s/namespace.yaml
+  - k8s/postgres.yaml
+  - k8s/app.yaml
+  - k8s/prometheus.yaml
+  - k8s/grafana.yaml
+  - k8s/caddy.yaml
+generatorOptions:
+  # The Deployments reference these ConfigMaps by their plain names.
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: prometheus-rules
+    files:
+      - observability/prometheus-rules.yaml
+  - name: grafana-dashboard
+    files:
+      - observability/grafana-dashboard.json

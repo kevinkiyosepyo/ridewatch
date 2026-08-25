@@ -4,6 +4,7 @@
 *.pb
 *.pb.gz
 .env
+deploy/k8s/secrets.yaml
 *.tfstate
 *.tfstate.backup
 .terraform/

@@ -1,0 +1,155 @@
+# RideWatch alerting rules. Every metric referenced here is defined in
+# internal/metrics/metrics.go — keep the two in sync.
+#
+# Load via prometheus.yml:
+#   rule_files:
+#     - /etc/prometheus/rules/prometheus-rules.yaml
+groups:
+  - name: ridewatch.rules
+    rules:
+      # THE canary. Staleness rises whether the agency's feed stalls or our
+      # poller does, and every downstream number (delays, push alerts,
+      # reliability stats) silently lies while it is high.
+      - alert: FeedStalled
+        expr: ridewatch_feed_staleness_seconds > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GTFS-RT feed {{ $labels.feed }} is stalled"
+          description: >-
+            The newest header timestamp of feed {{ $labels.feed }} is
+            {{ $value | humanize }}s old (threshold 300s) and has been for
+            5 minutes. All live delays, push alerts, and reliability stats
+            derived from this feed are stale.
+          runbook: >-
+            Usually the agency's feed endpoint stopped updating or our poller
+            stopped succeeding. First check ridewatch_polls_total outcomes for
+            this feed: if ok polls continue, the agency is republishing an old
+            timestamp (curl the feed URL and inspect the header); if not, read
+            the poller logs.
+
+      - alert: NoSuccessfulPolls
+        expr: sum by (feed) (rate(ridewatch_polls_total{outcome="ok"}[10m])) == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No successful polls of feed {{ $labels.feed }}"
+          description: >-
+            Zero polls of feed {{ $labels.feed }} succeeded in the last
+            10 minutes (expected cadence: one every 15s). Ingest for this feed
+            is fully down.
+          runbook: >-
+            Usually a network/DNS failure, an agency outage, or a changed feed
+            URL. First check the poller logs for the HTTP error, then curl the
+            configured feed URL from the host running RideWatch.
+
+      # Expected cadence is one poll per 15s (POLL_INTERVAL), i.e. 1/15
+      # polls/s. Alert when error + decode_error exceed 20% of that.
+      - alert: DroppedPollsHigh
+        expr: sum by (feed) (rate(ridewatch_polls_total{outcome=~"error|decode_error"}[10m])) > (0.2 * (1 / 15))
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High dropped-poll rate on feed {{ $labels.feed }}"
+          description: >-
+            Feed {{ $labels.feed }} is dropping polls (outcome error or
+            decode_error) at {{ $value | humanize }}/s, more than 20% of the
+            expected 1-poll-per-15s cadence, for 10 minutes.
+          runbook: >-
+            Usually intermittent agency 5xx/timeouts (error) or a feed
+            publishing malformed protobuf (decode_error). First split the rate
+            by outcome; for decode_error, pull the most recent archived blob
+            from the raw archive and try decoding it locally.
+
+      - alert: IngestLagHigh
+        expr: histogram_quantile(0.95, sum by (feed, le) (rate(ridewatch_ingest_lag_seconds_bucket[10m]))) > 60
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ingest lag p95 above 60s for feed {{ $labels.feed }}"
+          description: >-
+            95th-percentile latency from feed header timestamp to database
+            commit for feed {{ $labels.feed }} is {{ $value | humanize }}s
+            (threshold 60s) over the last 10 minutes. Live delays shown to
+            riders lag reality by about this much.
+          runbook: >-
+            Usually a slow or contended Postgres (upsert batches queueing) or a
+            reconcile engine falling behind. First check Postgres load and the
+            upserts/s panel; a simultaneous rise in poll duration points at the
+            fetch side instead.
+
+      - alert: ScheduleVersionStale
+        expr: ridewatch_schedule_version_age_days > 45
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Active static schedule is {{ $value | humanize }} days old"
+          description: >-
+            The active static GTFS schedule version was fetched more than
+            45 days ago. Agencies republish every few weeks; realtime trips
+            will increasingly fail to match, degrading delay computation.
+          runbook: >-
+            Usually the static refresh loop is failing (download or load error)
+            or the agency URL changed. First check
+            ridewatch_schedule_loads_total for error outcomes and the
+            load-static logs.
+
+      - alert: PushFailureRatioHigh
+        expr: >-
+          (
+            sum(increase(ridewatch_push_notifications_total{outcome="error"}[1h]))
+            /
+            sum(increase(ridewatch_push_notifications_total[1h]))
+          ) > 0.5
+          and
+          sum(increase(ridewatch_push_notifications_total[1h])) >= 10
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than half of Web Push sends are failing"
+          description: >-
+            Over the last hour, more than 50% of Web Push notifications ended
+            in outcome error (at least 10 sends attempted). Riders are not
+            receiving delay alerts. Expired subscriptions (gone) do not count
+            as errors.
+          runbook: >-
+            Usually a bad or rotated VAPID key pair, a mismatched VAPID
+            subject, or a push-service outage. First check the evaluator logs
+            for the HTTP status codes returned by the push endpoints.
+
+      - alert: RollupFailed
+        expr: increase(ridewatch_rollup_runs_total{outcome="error"}[24h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Nightly rollup failed in the last 24h"
+          description: >-
+            At least one rollup run ended in outcome error during the last
+            24 hours. Reliability stats (hourly heatmaps, worst departures,
+            plain-language sentences) are frozen at the last successful run.
+          runbook: >-
+            Usually a Postgres error mid-transaction (lock timeout, disk, a
+            partition problem) or a bad agency timezone. First grep the app
+            logs for the rollup error at the configured ROLLUP_HOUR_UTC.
+
+      - alert: TargetDown
+        expr: up{job="ridewatch"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RideWatch target {{ $labels.instance }} is down"
+          description: >-
+            Prometheus has been unable to scrape {{ $labels.instance }}
+            (job ridewatch) for 5 minutes. The app is down or unreachable —
+            polling, the API, and push evaluation are all presumed stopped.
+          runbook: >-
+            Usually a crashed/restarting pod or a broken scrape route. First
+            check the pod with kubectl -n ridewatch get pods and read the
+            crash logs; if the pod is healthy, verify the /metrics scrape
+            config and network path.

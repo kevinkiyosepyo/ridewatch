@@ -1,0 +1,19 @@
+#cloud-config
+# First boot: install k3s, open the host firewall (Ubuntu OCI images ship
+# restrictive iptables rules), and apply the RideWatch manifests. The app
+# stays Pending on secrets until ridewatch-secrets is created by hand — see
+# deploy/k8s/secrets.example.yaml.
+package_update: true
+packages:
+  - git
+  - curl
+
+runcmd:
+  # OCI's Ubuntu images reject 80/443 in iptables before the security list is
+  # ever consulted; k3s handles its own rules beyond that.
+  - iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+  - netfilter-persistent save || true
+  - curl -sfL https://get.k3s.io | sh -
+  - git clone ${repo_url} /opt/ridewatch
+  - k3s kubectl apply -k /opt/ridewatch/deploy
