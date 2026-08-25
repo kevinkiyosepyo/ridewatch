@@ -7,7 +7,9 @@ services:
       POSTGRES_PASSWORD: ridewatch
       POSTGRES_DB: ridewatch
     ports:
-      - "5432:5432"
+      # Override the host port when a local Postgres already owns 5432, e.g.
+      # RIDEWATCH_PG_PORT=5433 make db-up (then set DATABASE_URL to match).
+      - "${RIDEWATCH_PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

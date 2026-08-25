@@ -1,0 +1,9 @@
+# Whitelist: exclude everything, then re-include exactly what the build needs.
+# web/ and db/ carry go:embed assets and must be present in the context.
+*
+!go.mod
+!go.sum
+!cmd
+!internal
+!db
+!web
