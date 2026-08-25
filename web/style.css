@@ -1,0 +1,286 @@
+/* RideWatch — mobile-first dark theme. */
+
+:root {
+  --bg: #0b1120;
+  --surface: #121b30;
+  --surface-2: #1b2745;
+  --border: #26335a;
+  --text: #e6edf8;
+  --muted: #8fa0bd;
+  --ok: #34d399;      /* on time / < 2 min late */
+  --warn: #fbbf24;    /* 2-5 min late */
+  --bad: #f87171;     /* > 5 min late */
+  --unknown: #9ca3af; /* no delay estimate */
+  --accent: #60a5fa;
+}
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+h1, h2, h3 { line-height: 1.25; }
+.muted { color: var(--muted); }
+
+/* ---------- map page ---------- */
+
+#map { position: fixed; inset: 0; background: var(--bg); }
+
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: calc(.6rem + env(safe-area-inset-top)) .6rem .6rem;
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+
+.brand {
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .45rem .75rem;
+  white-space: nowrap;
+}
+
+.search-wrap { position: relative; flex: 1; max-width: 22rem; }
+
+#search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .48rem .8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
+#search::placeholder { color: var(--muted); }
+#search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+#search-results {
+  list-style: none;
+  position: absolute;
+  left: 0; right: 0;
+  margin: .35rem 0 0;
+  padding: .25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+}
+#search-results li {
+  padding: .5rem .6rem;
+  border-radius: .4rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#search-results li:hover, #search-results li.sel { background: var(--surface-2); }
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .45rem .75rem;
+  font-size: .85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pill::before {
+  content: "";
+  width: .55rem; height: .55rem;
+  border-radius: 50%;
+  background: var(--unknown);
+  flex: none;
+}
+.pill-green::before { background: var(--ok); }
+.pill-amber::before { background: var(--warn); }
+.pill-red::before { background: var(--bad); }
+
+/* MapLibre chrome, re-skinned for the dark theme. */
+.maplibregl-popup-content {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  padding: .6rem .8rem;
+  font: 14px/1.45 inherit;
+  font-family: inherit;
+}
+.maplibregl-popup-close-button { color: var(--muted); font-size: 1.1rem; }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--surface); }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--surface); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface); }
+.popup-route { font-weight: 700; margin-bottom: .1rem; }
+.popup-delay { font-weight: 600; }
+.popup-delay.ok { color: var(--ok); }
+.popup-delay.warn { color: var(--warn); }
+.popup-delay.bad { color: var(--bad); }
+.popup-delay.unknown { color: var(--muted); }
+
+.maplibregl-ctrl-attrib { background: rgba(11, 17, 32, .72); }
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib a { color: var(--muted); }
+.maplibregl-ctrl-group { background: var(--surface); border: 1px solid var(--border); }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+.maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(85%); }
+
+/* ---------- stop page ---------- */
+
+.page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: .9rem .9rem 3rem;
+}
+
+.stop-header { margin-bottom: 1rem; }
+.stop-header .back { display: inline-block; margin-bottom: .5rem; color: var(--muted); }
+.stop-header h1 { margin: 0 0 .5rem; font-size: 1.45rem; }
+
+.badges { display: flex; flex-wrap: wrap; gap: .4rem; }
+.badge {
+  display: inline-block;
+  min-width: 1.6rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: .85rem;
+  padding: .18rem .5rem;
+  border-radius: .45rem;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.stack { display: flex; flex-direction: column; gap: 1rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .8rem;
+  padding: 1rem;
+}
+.card h2 { margin: 0 0 .7rem; font-size: 1.05rem; }
+.card h3 {
+  margin: 1.2rem 0 .55rem;
+  font-size: .78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.arrival {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.arrival:last-child { border-bottom: 0; padding-bottom: 0; }
+.arrival-main { flex: 1; min-width: 0; }
+.arrival-headsign { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arrival-sched { font-size: .85rem; }
+.delta { font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.delta.ok { color: var(--ok); }
+.delta.warn { color: var(--warn); }
+.delta.bad { color: var(--bad); }
+.delta.unknown { color: var(--muted); }
+
+.sentences p { margin: .45rem 0; font-size: 1.02rem; line-height: 1.55; }
+
+/* Heatmap: label column + 24 hour columns; 7 day rows. */
+.heatmap-scroll { overflow-x: auto; }
+.heatmap {
+  display: grid;
+  grid-template-columns: 2.4rem repeat(24, minmax(.72rem, 1fr));
+  gap: 2px;
+  min-width: 24rem;
+}
+.hm-label {
+  font-size: .65rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+.hm-h { justify-content: center; }
+.hm-cell { aspect-ratio: 1; border-radius: 2px; background: var(--surface-2); }
+.hm-cell.empty { background: transparent; box-shadow: inset 0 0 0 1px var(--surface-2); }
+
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: 0; }
+th {
+  color: var(--muted);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+}
+th.num, td.num { text-align: right; }
+td .sub { display: block; font-size: .75rem; color: var(--muted); }
+
+.thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  border: 0;
+  padding: 0;
+  margin: 0 0 .8rem;
+}
+.thresholds label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .38rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: .92rem;
+}
+.thresholds input { accent-color: var(--accent); margin: 0; }
+
+button.primary {
+  display: block;
+  width: 100%;
+  padding: .6rem .9rem;
+  border: 0;
+  border-radius: .6rem;
+  background: var(--accent);
+  color: #0b1120;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.primary:disabled { opacity: .55; cursor: default; }
+button.primary.off { background: var(--surface-2); color: var(--text); }
+
+#notify-status { min-height: 1.4em; margin: .6rem 0 0; font-size: .88rem; }
+
+@media (max-width: 480px) {
+  .topbar { gap: .4rem; padding-left: .45rem; padding-right: .45rem; }
+  .brand { padding: .45rem .6rem; }
+  .pill { font-size: .78rem; padding: .45rem .6rem; }
+  .page { padding: .7rem .7rem 2.5rem; }
+  .card { padding: .8rem; }
+  .heatmap { min-width: 21rem; grid-template-columns: 2rem repeat(24, minmax(.6rem, 1fr)); }
+  .hm-h:not(.hm-h6) { visibility: hidden; }
+  th, td { padding: .4rem .35rem; font-size: .88rem; }
+}

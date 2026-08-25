@@ -1,0 +1,53 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1120">
+<title>Stop &middot; RideWatch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20x='4'%20y='2'%20width='24'%20height='24'%20rx='5'%20fill='%2334d399'/%3E%3Crect%20x='7'%20y='6'%20width='18'%20height='9'%20rx='1.5'%20fill='%230b1120'/%3E%3Ccircle%20cx='10'%20cy='20'%20r='2.2'%20fill='%230b1120'/%3E%3Ccircle%20cx='22'%20cy='20'%20r='2.2'%20fill='%230b1120'/%3E%3Crect%20x='8'%20y='26'%20width='5'%20height='4'%20rx='1.2'%20fill='%2334d399'/%3E%3Crect%20x='19'%20y='26'%20width='5'%20height='4'%20rx='1.2'%20fill='%2334d399'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+
+<div class="page">
+  <header class="stop-header">
+    <a class="back" href="/">&larr; Map</a>
+    <h1 id="stop-name">Stop</h1>
+    <div id="stop-routes" class="badges"></div>
+  </header>
+
+  <main class="stack">
+    <section class="card">
+      <h2>Now</h2>
+      <div id="arrivals"><p class="muted">Loading&hellip;</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Track record</h2>
+      <div id="sentences" class="sentences"><p class="muted">Loading&hellip;</p></div>
+
+      <h3>Late 5+ minutes, by hour of week</h3>
+      <div class="heatmap-scroll"><div id="heatmap" class="heatmap"></div></div>
+
+      <h3>Worst scheduled departures</h3>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Route</th><th class="num">Late 5+ min</th><th class="num">p90</th></tr>
+          </thead>
+          <tbody id="worst"><tr><td colspan="4" class="muted">Loading&hellip;</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Notify me</h2>
+      <p class="muted">Get a push alert when an arrival at this stop is running late by at least:</p>
+      <fieldset class="thresholds" id="thresholds">
+        <label><input type="radio" name="threshold" value="180"> 3 min</label>
+        <label><input type="radio" name="threshold" value="300" checked> 5 min</label>
+        <label><input type="radio" name="threshold" value="600"> 10 min</label>
+      </fieldset>
+      <button id="notify-btn" class="primary">Turn on alerts</button>
+      <p id="notify-status" class="muted"></p>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="/stop.js"></script>
