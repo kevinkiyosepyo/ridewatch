@@ -46,6 +46,11 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         run: |
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "DEPLOY_HOST secret not set — image published to GHCR, skipping the SSH roll."
+            echo "Configure DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY once the instance exists."
+            exit 0
+          fi
           install -m 600 /dev/null key
           printf '%s\n' "$DEPLOY_SSH_KEY" > key
           # "migrate" is the init container; set image covers it by name too.
