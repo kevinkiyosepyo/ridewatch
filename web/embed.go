@@ -9,5 +9,5 @@ import "embed"
 
 // FS is the frontend asset tree; cmd passes it into api.New.
 //
-//go:embed index.html stop.html app.js stop.js style.css sw.js vendor
+//go:embed index.html stop.html app.js stop.js delay.js style.css sw.js vendor
 var FS embed.FS

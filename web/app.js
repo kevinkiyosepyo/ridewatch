@@ -1,10 +1,11 @@
 /* RideWatch map page: live vehicles, stop search, viewport stops, feed status. */
 
+import { delayClass, delayText, delayColor } from '/delay.js';
+
 const VEHICLES_MS = 10000;
 const FEEDINFO_MS = 30000;
 const STOPS_MIN_ZOOM = 14;
 const EMPTY = { type: 'FeatureCollection', features: [] };
-const COLORS = { ok: '#34d399', warn: '#fbbf24', bad: '#f87171', unknown: '#9ca3af' };
 
 async function fetchJSON(url, opts) {
   const res = await fetch(url, opts);
@@ -30,27 +31,6 @@ function pick(obj, ...names) {
 function num(v) {
   const n = Number(v);
   return v === null || v === undefined || !Number.isFinite(n) ? null : n;
-}
-
-function delayColor(d) {
-  if (d === null) return COLORS.unknown;
-  if (d < 120) return COLORS.ok;
-  if (d <= 300) return COLORS.warn;
-  return COLORS.bad;
-}
-
-function delayClass(d) {
-  if (d === null) return 'unknown';
-  if (d < 120) return 'ok';
-  if (d <= 300) return 'warn';
-  return 'bad';
-}
-
-function delayText(d) {
-  if (d === null) return 'delay unknown';
-  if (Math.abs(d) < 60) return 'on time';
-  const m = Math.round(Math.abs(d) / 60);
-  return d > 0 ? m + ' min late' : m + ' min early';
 }
 
 /* ---- status pill ---- */

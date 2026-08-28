@@ -11,6 +11,7 @@
   --ok: #34d399;      /* on time / < 2 min late */
   --warn: #fbbf24;    /* 2-5 min late */
   --bad: #f87171;     /* > 5 min late */
+  --early: #7dd3fc;   /* running >= 1 min early (you might miss it) */
   --unknown: #9ca3af; /* no delay estimate */
   --accent: #60a5fa;
 }
@@ -140,6 +141,7 @@ h1, h2, h3 { line-height: 1.25; }
 .popup-delay.ok { color: var(--ok); }
 .popup-delay.warn { color: var(--warn); }
 .popup-delay.bad { color: var(--bad); }
+.popup-delay.early { color: var(--early); }
 .popup-delay.unknown { color: var(--muted); }
 
 .maplibregl-ctrl-attrib { background: rgba(11, 17, 32, .72); }
@@ -205,6 +207,7 @@ h1, h2, h3 { line-height: 1.25; }
 .delta.ok { color: var(--ok); }
 .delta.warn { color: var(--warn); }
 .delta.bad { color: var(--bad); }
+.delta.early { color: var(--early); }
 .delta.unknown { color: var(--muted); }
 
 .sentences p { margin: .45rem 0; font-size: 1.02rem; line-height: 1.55; }

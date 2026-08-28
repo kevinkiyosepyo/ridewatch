@@ -1,5 +1,7 @@
 /* RideWatch stop page: header, live arrivals, track record, push alerts. */
 
+import { delayClass, delayText } from '/delay.js';
+
 const UPCOMING_MS = 15000;
 
 const stopId = decodeURIComponent(
@@ -63,7 +65,7 @@ function gtfsClock(secs) {
 
 function fmtDelayMin(secs) {
   const m = Math.round(secs / 60);
-  return (m > 0 ? '+' : '') + m + ' min';
+  return (m < 0 ? '−' + -m : '+' + m) + ' min';
 }
 
 // late5_pct may be a 0..1 share or a 0..100 percentage; normalize to 0..1.
@@ -113,12 +115,8 @@ function renderArrivals(events) {
     const sched = parseTime(pick(ev, 'scheduled_arrival', 'ScheduledArrival'));
     const delay = num(pick(ev, 'delay_secs', 'DelaySecs', 'delay'));
 
-    let cls = 'unknown', text = '—';
-    if (delay !== null) {
-      if (Math.abs(delay) < 60) { cls = 'ok'; text = 'on time'; }
-      else if (delay > 0) { cls = 'bad'; text = '+' + Math.round(delay / 60) + ' min'; }
-      else { cls = 'warn'; text = '−' + Math.round(-delay / 60) + ' min'; }
-    }
+    const cls = delayClass(delay);
+    const text = delayText(delay);
 
     const row = el('div', 'arrival');
     const main = el('div', 'arrival-main');
