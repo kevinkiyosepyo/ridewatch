@@ -293,7 +293,7 @@ func (s *server) handleUpcoming(w http.ResponseWriter, r *http.Request) {
 			TripID:         ev.TripID,
 			RouteID:        ev.RouteID,
 			RouteShortName: shortNames[ev.RouteID],
-			Headsign:       "", // StopEvent carries no headsign; see deviations
+			Headsign:       ev.Headsign,
 			DirectionID:    ev.DirectionID,
 			StopSequence:   ev.StopSequence,
 			Scheduled:      rfc3339OrNil(ev.ScheduledArrival),

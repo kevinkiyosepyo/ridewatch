@@ -84,6 +84,7 @@ func (e *Engine) reconcileTrip(ctx context.Context, tu *domain.TripUpdate, snap 
 		DirectionID:       ts.DirectionID,
 		ScheduleVersionID: ver.ID,
 		VehicleID:         tu.VehicleID,
+		Headsign:          ts.Headsign,
 		FeedTimestamp:     feedTS,
 		ObservedAt:        snap.PolledAt,
 	}

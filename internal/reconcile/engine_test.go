@@ -284,6 +284,9 @@ func TestDelayPropagatesToLaterStops(t *testing.T) {
 	if len(events) != 3 {
 		t.Fatalf("got %d events, want 3 (delay propagates to the whole rest of the trip)", len(events))
 	}
+	if events[0].Headsign != "Harvard" {
+		t.Errorf("headsign = %q, want the schedule's %q", events[0].Headsign, "Harvard")
+	}
 	for seq, wantPred := range map[int]time.Time{2: at(8, 15), 3: at(8, 25)} {
 		got := eventAt(t, events, seq)
 		wantDelay(t, got, 300)
