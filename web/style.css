@@ -118,6 +118,40 @@ h1, h2, h3 { line-height: 1.25; }
 .pill-amber::before { background: var(--warn); }
 .pill-red::before { background: var(--bad); }
 
+/* Legend: bottom-left, above MapLibre's attribution. */
+.legend {
+  position: fixed;
+  left: .6rem;
+  bottom: calc(1.6rem + env(safe-area-inset-bottom));
+  z-index: 5;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .6rem;
+  padding: .5rem .65rem;
+  font-size: .72rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.legend-row { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
+.legend .dot {
+  width: .55rem; height: .55rem;
+  border-radius: 50%;
+  flex: none;
+}
+.dot-ok { background: var(--ok); }
+.dot-warn { background: var(--warn); }
+.dot-bad { background: var(--bad); }
+.dot-early { background: var(--early); }
+.dot-unknown { background: var(--unknown); }
+.legend-note {
+  margin-top: .3rem;
+  padding-top: .3rem;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.legend-note:empty { display: none; }
+
 /* MapLibre chrome, re-skinned for the dark theme. */
 .maplibregl-popup-content {
   background: var(--surface);

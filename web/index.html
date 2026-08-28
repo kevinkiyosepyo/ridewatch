@@ -26,6 +26,15 @@
   <div id="pill" class="pill" role="status">connecting&hellip;</div>
 </header>
 
+<aside class="legend" aria-label="Map legend">
+  <div class="legend-row"><i class="dot dot-ok"></i>on time</div>
+  <div class="legend-row"><i class="dot dot-warn"></i>2&ndash;5 min late</div>
+  <div class="legend-row"><i class="dot dot-bad"></i>5+ min late</div>
+  <div class="legend-row"><i class="dot dot-early"></i>running early</div>
+  <div class="legend-row"><i class="dot dot-unknown"></i>no estimate</div>
+  <div id="legend-note" class="legend-note"></div>
+</aside>
+
 <script src="/vendor/maplibre-gl.js"></script>
 <script type="module" src="/app.js"></script>
 </body>

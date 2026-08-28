@@ -59,16 +59,35 @@ function extractAges(info) {
 
 function renderPill() {
   let cls = 'pill-red';
-  let text = 'offline';
-  if (feedOk && vehiclesOk && worstAgeSecs !== null) {
+  let text = 'no data — retrying';
+  if (feedOk && vehiclesOk && worstAgeSecs === null) {
+    // Reached the server but no feed age yet: connecting, not broken.
+    cls = '';
+    text = 'connecting…';
+  } else if (feedOk && vehiclesOk && worstAgeSecs !== null) {
     const s = worstAgeSecs;
     const label = s < 90 ? Math.round(s) + 's' : Math.round(s / 60) + 'm';
     if (s < 60) { cls = 'pill-green'; text = 'live · ' + label; }
     else if (s < 180) { cls = 'pill-amber'; text = 'lagging · ' + label; }
     else { text = 'stale · ' + label; }
   }
-  pill.className = 'pill ' + cls;
+  pill.className = ('pill ' + cls).trim();
   pill.textContent = text;
+}
+
+/* ---- legend note: vehicle count + how to reach stops ---- */
+
+const legendNote = document.getElementById('legend-note');
+let vehicleCount = null;
+
+function renderLegendNote() {
+  if (!legendNote) return;
+  const parts = [];
+  if (vehicleCount !== null) {
+    parts.push(vehicleCount === 0 ? 'no vehicles reporting' : vehicleCount + ' vehicles');
+  }
+  parts.push(map.getZoom() < STOPS_MIN_ZOOM ? 'zoom in for stops' : 'tap a stop for arrivals');
+  legendNote.textContent = parts.join(' · ');
 }
 
 async function refreshFeedInfo() {
@@ -154,11 +173,13 @@ async function refreshVehicles() {
     const src = map.getSource('vehicles');
     if (src) src.setData(fc);
     maybeFit(fc);
+    vehicleCount = fc.features.length;
     vehiclesOk = true;
   } catch {
     vehiclesOk = false;
   }
   renderPill();
+  renderLegendNote();
 }
 
 /* ---- stops in viewport ---- */
@@ -251,6 +272,8 @@ map.on('load', () => {
   }
 
   map.on('moveend', refreshStops);
+  map.on('zoom', renderLegendNote);
+  renderLegendNote();
   refreshVehicles();
   refreshStops();
   setInterval(() => { if (!document.hidden) refreshVehicles(); }, VEHICLES_MS);
