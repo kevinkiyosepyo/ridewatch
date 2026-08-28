@@ -142,14 +142,29 @@ function renderArrivals(events) {
   }
 }
 
+// Freshness: the "Now" list self-refreshes; say so, or live and stale look identical.
+let lastUpdatedAt = null;
+function renderFreshness() {
+  const out = document.getElementById('now-updated');
+  if (!out || !lastUpdatedAt) return;
+  const s = Math.round((Date.now() - lastUpdatedAt) / 1000);
+  out.textContent = s < 10 ? 'updated just now' : s < 90 ? 'updated ' + s + 's ago'
+    : 'updated ' + Math.round(s / 60) + ' min ago';
+}
+setInterval(renderFreshness, 5000);
+
 async function refreshUpcoming() {
   try {
     const data = await fetchJSON('/api/stops/' + encodeURIComponent(stopId) + '/upcoming');
     renderArrivals(pickArray(data, 'events', 'upcoming', 'arrivals'));
-  } catch {
+    lastUpdatedAt = Date.now();
+    renderFreshness();
+  } catch (err) {
     const box = document.getElementById('arrivals');
     box.textContent = '';
-    box.append(el('p', 'muted', 'Live arrivals unavailable.'));
+    box.append(el('p', 'muted', /404/.test(err && err.message)
+      ? 'This stop is not in the current schedule. It may have moved or been renamed.'
+      : 'Live arrivals unavailable.'));
   }
 }
 
@@ -252,17 +267,25 @@ function renderWorst(departures) {
 }
 
 async function loadReliability() {
+  const history = document.getElementById('history');
   try {
     const rel = await fetchJSON('/api/stops/' + encodeURIComponent(stopId) + '/reliability');
+    const hourly = pickArray(rel, 'hourly', 'Hourly', 'stop_hourly');
+    const departures = pickArray(rel, 'departures', 'Departures', 'worst_departures');
     renderSentences(pickArray(rel && (rel.sentences || rel.Sentences)));
-    renderHeatmap(pickArray(rel, 'hourly', 'Hourly', 'stop_hourly'));
-    renderWorst(pickArray(rel, 'departures', 'Departures', 'worst_departures'));
+    // An empty grid and an empty table are noise, not information.
+    if (hourly.length || departures.length) {
+      history.hidden = false;
+      renderHeatmap(hourly);
+      renderWorst(departures);
+    } else {
+      history.hidden = true;
+    }
   } catch {
     const box = document.getElementById('sentences');
     box.textContent = '';
     box.append(el('p', 'muted', 'Track record unavailable.'));
-    renderHeatmap([]);
-    renderWorst([]);
+    history.hidden = true;
   }
 }
 

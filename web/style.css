@@ -222,22 +222,44 @@ h1, h2, h3 { line-height: 1.25; }
   color: var(--text);
 }
 
-.stack { display: flex; flex-direction: column; gap: 1rem; }
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: .8rem;
-  padding: 1rem;
-}
-.card h2 { margin: 0 0 .7rem; font-size: 1.05rem; }
-.card h3 {
+/* Document layout: sections divided by rules, not floated in card chrome.
+   The one box left is .panel — the notify block, which IS an interaction. */
+.stack { display: flex; flex-direction: column; gap: 1.4rem; }
+.stack > section { border-top: 1px solid var(--border); padding-top: 1.1rem; }
+.stack > section:first-child { border-top: 0; padding-top: 0; }
+.stack section h2 { margin: 0 0 .7rem; font-size: 1.05rem; }
+.stack section h3 {
   margin: 1.2rem 0 .55rem;
   font-size: .78rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: .05em;
 }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .8rem;
+  padding: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  margin-bottom: .7rem;
+}
+.section-head h2 { margin: 0; }
+.freshness {
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.small { font-size: .8rem; }
+
+.thresholds legend { padding: 0; margin: 0 0 .6rem; }
 
 .arrival {
   display: flex;
@@ -348,7 +370,7 @@ button.primary.off { background: var(--surface-2); color: var(--text); }
   .brand { padding: .45rem .6rem; }
   .pill { font-size: .78rem; padding: .45rem .6rem; }
   .page { padding: .7rem .7rem 2.5rem; }
-  .card { padding: .8rem; }
+  .panel { padding: .8rem; }
   .heatmap { min-width: 21rem; grid-template-columns: 2rem repeat(24, minmax(.6rem, 1fr)); }
   .hm-h:not(.hm-h6) { visibility: hidden; }
   th, td { padding: .4rem .35rem; font-size: .88rem; }
