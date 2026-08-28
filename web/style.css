@@ -6,6 +6,7 @@
   --surface: #121b30;
   --surface-2: #1b2745;
   --border: #26335a;
+  --border-strong: #46578c; /* control boundaries need to be findable */
   --text: #e6edf8;
   --muted: #8fa0bd;
   --ok: #34d399;      /* on time / < 2 min late */
@@ -28,6 +29,7 @@ body {
 }
 
 a { color: var(--accent); text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { line-height: 1.25; }
 .muted { color: var(--muted); }
 
@@ -60,7 +62,7 @@ h1, h2, h3 { line-height: 1.25; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: .45rem .75rem;
+  padding: .6rem .8rem;
   white-space: nowrap;
 }
 
@@ -69,9 +71,9 @@ h1, h2, h3 { line-height: 1.25; }
 #search {
   width: 100%;
   box-sizing: border-box;
-  padding: .48rem .8rem;
+  padding: .6rem .8rem;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
   font-size: 1rem;
@@ -115,7 +117,7 @@ h1, h2, h3 { line-height: 1.25; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: .45rem .75rem;
+  padding: .6rem .75rem;
   font-size: .85rem;
   color: var(--muted);
   white-space: nowrap;
@@ -206,7 +208,14 @@ h1, h2, h3 { line-height: 1.25; }
 }
 
 .stop-header { margin-bottom: 1rem; }
-.stop-header .back { display: inline-block; margin-bottom: .5rem; color: var(--muted); }
+.stop-header .back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: .8rem;
+  margin-bottom: .2rem;
+  color: var(--muted);
+}
 .stop-header h1 { margin: 0 0 .5rem; font-size: 1.45rem; }
 
 .badges { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -340,8 +349,10 @@ td .sub { display: block; font-size: .75rem; color: var(--muted); }
   display: flex;
   align-items: center;
   gap: .4rem;
-  padding: .38rem .7rem;
-  border: 1px solid var(--border);
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: .55rem .85rem;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   cursor: pointer;
   font-size: .92rem;
@@ -351,7 +362,8 @@ td .sub { display: block; font-size: .75rem; color: var(--muted); }
 button.primary {
   display: block;
   width: 100%;
-  padding: .6rem .9rem;
+  min-height: 48px;
+  padding: .7rem .9rem;
   border: 0;
   border-radius: .6rem;
   background: var(--accent);
