@@ -82,7 +82,7 @@ type StopEvent struct {
 	DirectionID       int16
 	ScheduleVersionID int64
 	VehicleID         string
-	Headsign          string // trip headsign from the static schedule; in-memory only, not persisted
+	Headsign          string    // trip headsign from the static schedule; in-memory only, not persisted
 	ScheduledArrival  time.Time // zero = unknown (trip not in static schedule)
 	PredictedArrival  time.Time // zero = no prediction
 	ActualArrival     time.Time // zero until finalized
