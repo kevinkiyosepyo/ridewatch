@@ -1,6 +1,6 @@
 /* RideWatch stop page: header, live arrivals, track record, push alerts. */
 
-import { delayClass, delayText } from '/delay.js';
+import { delayClass, delayText, DELAY_COLORS } from '/delay.js';
 
 const UPCOMING_MS = 15000;
 
@@ -220,23 +220,34 @@ function renderHeatmap(hourly) {
     const lab = el('div', 'hm-label hm-h' + (h % 6 === 0 ? ' hm-h6' : ''), h % 3 === 0 ? String(h) : '');
     grid.append(lab);
   }
+  // --bad as r,g,b so the ramp always matches the palette.
+  const badN = parseInt(DELAY_COLORS.bad.replace('#', ''), 16) || 0xf87171;
+  const badRGB = [(badN >> 16) & 255, (badN >> 8) & 255, badN & 255].join(',');
+  const detail = document.getElementById('heatmap-detail');
+
   for (let day = 0; day < 7; day++) {
     grid.append(el('div', 'hm-label', DAYS[day]));
     for (let hour = 0; hour < 24; hour++) {
       const c = cells[day][hour];
       const cell = el('div', 'hm-cell' + (c ? '' : ' empty'));
+      const when = DAYS[day] + ' ' + String(hour).padStart(2, '0') + ':00';
+      let text = when + ' · no data';
       if (c) {
         const late = c.late / c.n; // 0..1 share of late-5+ observations
-        cell.style.background = 'rgba(248,113,113,' + Math.min(1, 0.08 + late * 1.4).toFixed(3) + ')';
-        const parts = [DAYS[day] + ' ' + String(hour).padStart(2, '0') + ':00',
-          Math.round(late * 100) + '% late 5+ min'];
-        if (c.p50n) parts.push('p50 ' + fmtDelayMin(c.p50 / c.p50n));
-        if (c.p90n) parts.push('p90 ' + fmtDelayMin(c.p90 / c.p90n));
-        parts.push('n=' + c.n);
-        cell.title = parts.join(' · ');
-      } else {
-        cell.title = DAYS[day] + ' ' + String(hour).padStart(2, '0') + ':00 · no data';
+        // A reliable hour stays neutral; the ramp tops out at 100%, so 60%
+        // and 100% no longer look the same.
+        if (late > 0) {
+          cell.style.background = 'rgba(' + badRGB + ',' + Math.min(0.92, 0.12 + late * 0.8).toFixed(3) + ')';
+        }
+        const parts = [when, Math.round(late * 100) + '% of trips 5+ min late'];
+        if (c.p50n) parts.push('typically ' + fmtDelayMin(c.p50 / c.p50n));
+        if (c.p90n) parts.push('worst case ' + fmtDelayMin(c.p90 / c.p90n));
+        parts.push(c.n + ' observations');
+        text = parts.join(' · ');
       }
+      cell.title = text;
+      // Tooltips don't exist on touch; a tap writes the detail line instead.
+      cell.addEventListener('click', () => { detail.textContent = text; });
       grid.append(cell);
     }
   }
