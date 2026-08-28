@@ -86,7 +86,9 @@ function renderLegendNote() {
   if (vehicleCount !== null) {
     parts.push(vehicleCount === 0 ? 'no vehicles reporting' : vehicleCount + ' vehicles');
   }
-  parts.push(map.getZoom() < STOPS_MIN_ZOOM ? 'zoom in for stops' : 'tap a stop for arrivals');
+  if (map) {
+    parts.push(map.getZoom() < STOPS_MIN_ZOOM ? 'zoom in for stops' : 'tap a stop for arrivals');
+  }
   legendNote.textContent = parts.join(' · ');
 }
 
@@ -117,25 +119,35 @@ try {
 }
 renderPill();
 
-const map = new maplibregl.Map({
-  container: 'map',
-  style: {
-    version: 8,
-    sources: {
-      osm: {
-        type: 'raster',
-        tiles: [tileUrl],
-        tileSize: 256,
-        maxzoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
+// A dead GPU (WebGL blocklist, old hardware, headless) must not take search
+// down with it: the stop pages work fine without a map.
+let map = null;
+try {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: [tileUrl],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        },
       },
+      layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
     },
-    layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-  },
-  center: [-71.06, 42.355], // MBTA-ish default; first vehicle payload refits
-  zoom: 12,
-});
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    center: [-71.06, 42.355], // MBTA-ish default; first vehicle payload refits
+    zoom: 12,
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+} catch {
+  const note = document.createElement('p');
+  note.className = 'map-failed muted';
+  note.textContent = 'The live map needs WebGL, which this browser has turned off. Search still works.';
+  document.getElementById('map').append(note);
+}
 
 /* ---- vehicles ---- */
 
@@ -158,7 +170,7 @@ function annotateVehicles(data) {
 
 let didFit = false;
 function maybeFit(fc) {
-  if (didFit || !fc.features.length) return;
+  if (!map || didFit || !fc.features.length) return;
   didFit = true;
   const b = new maplibregl.LngLatBounds();
   for (const f of fc.features) {
@@ -170,7 +182,7 @@ function maybeFit(fc) {
 async function refreshVehicles() {
   try {
     const fc = annotateVehicles(await fetchJSON('/api/vehicles'));
-    const src = map.getSource('vehicles');
+    const src = map && map.getSource('vehicles');
     if (src) src.setData(fc);
     maybeFit(fc);
     vehicleCount = fc.features.length;
@@ -203,7 +215,7 @@ function stopsToGeoJSON(data) {
 }
 
 const refreshStops = debounce(async () => {
-  const src = map.getSource('stops');
+  const src = map && map.getSource('stops');
   if (!src) return;
   if (map.getZoom() < STOPS_MIN_ZOOM) { src.setData(EMPTY); return; }
   const b = map.getBounds();
@@ -216,7 +228,7 @@ const refreshStops = debounce(async () => {
 
 /* ---- layers + interactions ---- */
 
-map.on('load', () => {
+if (map) map.on('load', () => {
   map.addSource('vehicles', { type: 'geojson', data: EMPTY });
   map.addSource('stops', { type: 'geojson', data: EMPTY });
 
@@ -297,8 +309,10 @@ map.on('load', () => {
   refreshVehicles();
   refreshStops();
   setInterval(() => { if (!document.hidden) refreshVehicles(); }, VEHICLES_MS);
-  setInterval(() => { if (!document.hidden) refreshFeedInfo(); }, FEEDINFO_MS);
 });
+
+// The status pill must keep working even when the map cannot.
+setInterval(() => { if (!document.hidden) refreshFeedInfo(); }, FEEDINFO_MS);
 
 /* ---- stop search ---- */
 

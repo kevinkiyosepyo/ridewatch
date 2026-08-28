@@ -34,6 +34,13 @@ h1, h2, h3 { line-height: 1.25; }
 /* ---------- map page ---------- */
 
 #map { position: fixed; inset: 0; background: var(--bg); }
+.map-failed {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 22rem;
+  text-align: center;
+}
 
 .topbar {
   position: fixed;
