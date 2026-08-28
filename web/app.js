@@ -228,9 +228,25 @@ const refreshStops = debounce(async () => {
 
 /* ---- layers + interactions ---- */
 
+// chevronImage draws a small triangle the SDF pipeline can tint per-vehicle.
+function chevronImage(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  g.beginPath();
+  g.moveTo(size / 2, size * 0.06);
+  g.lineTo(size * 0.84, size * 0.64);
+  g.lineTo(size * 0.16, size * 0.64);
+  g.closePath();
+  g.fillStyle = '#fff';
+  g.fill();
+  return g.getImageData(0, 0, size, size);
+}
+
 if (map) map.on('load', () => {
   map.addSource('vehicles', { type: 'geojson', data: EMPTY });
   map.addSource('stops', { type: 'geojson', data: EMPTY });
+  map.addImage('chevron', chevronImage(24), { sdf: true });
 
   map.addLayer({
     id: 'vehicles',
@@ -242,6 +258,30 @@ if (map) map.on('load', () => {
       'circle-stroke-width': 1.5,
       'circle-stroke-color': '#0b1120',
       'circle-opacity': 0.95,
+    },
+  });
+
+  // The feed reports which way each vehicle points; drawing it turns anonymous
+  // dots into flow you can read at a glance. Vehicles without a bearing stay
+  // plain dots.
+  map.addLayer({
+    id: 'vehicle-headings',
+    type: 'symbol',
+    source: 'vehicles',
+    filter: ['>=', ['get', 'bearing'], 0],
+    layout: {
+      'icon-image': 'chevron',
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.45, 16, 0.8],
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'icon-offset': [0, -13], // rides just outside the dot's edge
+    },
+    paint: {
+      'icon-color': ['get', '_color'],
+      'icon-halo-color': '#0b1120',
+      'icon-halo-width': 1,
     },
   });
   map.addLayer({
