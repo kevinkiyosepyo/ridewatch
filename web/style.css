@@ -404,6 +404,29 @@ button.primary.off { background: var(--surface-2); color: var(--text); }
 
 #notify-status { min-height: 1.4em; margin: .6rem 0 0; font-size: .88rem; }
 
+/* ---------- motion: three quiet behaviors, all skippable ----------
+   1. hover/press feedback on interactive surfaces
+   2. the search dropdown settles in instead of popping
+   3. the live dot breathes so "live" reads as alive */
+@media (prefers-reduced-motion: no-preference) {
+  a, button.primary, .thresholds label, #search-results li, #search, .brand {
+    transition: background-color .15s ease-out, border-color .15s ease-out,
+      color .15s ease-out, filter .15s ease-out;
+  }
+  #search-results { animation: settle-in .14s ease-out; }
+  @keyframes settle-in {
+    from { opacity: 0; transform: translateY(-4px); }
+  }
+  .pill-green::before { animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe {
+    50% { opacity: .4; }
+  }
+  button.primary:active { transform: scale(.985); }
+}
+.thresholds label:hover { background: var(--surface-2); }
+button.primary:hover { filter: brightness(1.08); }
+.stop-header .back:hover { color: var(--text); }
+
 @media (max-width: 480px) {
   .topbar { gap: .4rem; padding-left: .45rem; padding-right: .45rem; }
   .brand { padding: .45rem .6rem; }
