@@ -75,6 +75,18 @@ function share(v) {
   return n > 1 ? n / 100 : n;
 }
 
+// textOn picks readable text for an agency-supplied badge color: GTFS feeds
+// often omit route_text_color, and a dark-on-dark badge is unreadable.
+function textOn(hex6) {
+  const n = parseInt(hex6, 16);
+  const lin = v => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const l = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return l > 0.35 ? 'var(--bg)' : '#ffffff';
+}
+
 /* ---- header ---- */
 
 async function loadHeader() {
@@ -94,7 +106,7 @@ async function loadHeader() {
     const textColor = pick(r, 'text_color', 'TextColor');
     if (typeof color === 'string' && /^[0-9a-fA-F]{6}$/.test(color)) {
       badge.style.background = '#' + color;
-      badge.style.color = /^[0-9a-fA-F]{6}$/.test(textColor || '') ? '#' + textColor : '#0b1120';
+      badge.style.color = /^[0-9a-fA-F]{6}$/.test(textColor || '') ? '#' + textColor : textOn(color);
     }
     badges.append(badge);
   }
@@ -388,13 +400,24 @@ async function unsubscribe() {
   localStorage.removeItem(SUB_KEY);
 }
 
-function initNotify() {
+async function initNotify() {
   if (!pushSupported) {
     thresholds.disabled = true;
     notifyBtn.disabled = true;
     notifyStatus.textContent = 'Push notifications are not supported in this browser.';
     return;
   }
+  // Don't offer a button that can only fail: hide the controls when the
+  // server runs without VAPID keys.
+  try {
+    const info = await fetchJSON('/api/feedinfo');
+    if (pick(info, 'push_enabled', 'PushEnabled') === false) {
+      thresholds.hidden = true;
+      notifyBtn.hidden = true;
+      notifyStatus.textContent = 'Alerts are switched off on this server.';
+      return;
+    }
+  } catch { /* can't tell — leave the controls; subscribe reports its own errors */ }
   renderNotify();
 
   notifyBtn.addEventListener('click', async () => {
