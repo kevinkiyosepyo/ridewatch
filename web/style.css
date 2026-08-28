@@ -15,6 +15,17 @@
   --early: #7dd3fc;   /* running >= 1 min early (you might miss it) */
   --unknown: #9ca3af; /* no delay estimate */
   --accent: #60a5fa;
+
+  /* Spacing and radius scale — new rules use these; legacy values migrate as touched. */
+  --s1: .25rem;
+  --s2: .5rem;
+  --s3: .75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --r1: .45rem;
+  --r2: .6rem;
+  --r3: .8rem;
+  --fs-caption: .75rem; /* smallest text anywhere: 12px */
 }
 
 html, body { height: 100%; }
@@ -108,7 +119,7 @@ h1, h2, h3 { line-height: 1.25; }
 }
 #search-results li:hover, #search-results li.sel { background: var(--surface-2); }
 #search-results .result-name { overflow: hidden; text-overflow: ellipsis; }
-#search-results .result-kind { font-size: .72rem; color: var(--muted); flex: none; }
+#search-results .result-kind { font-size: var(--fs-caption); color: var(--muted); flex: none; }
 
 .pill {
   display: flex;
@@ -117,7 +128,7 @@ h1, h2, h3 { line-height: 1.25; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: .6rem .75rem;
+  padding: .6rem .8rem;
   font-size: .85rem;
   color: var(--muted);
   white-space: nowrap;
@@ -143,7 +154,7 @@ h1, h2, h3 { line-height: 1.25; }
   border: 1px solid var(--border);
   border-radius: .6rem;
   padding: .5rem .65rem;
-  font-size: .72rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
   line-height: 1.6;
 }
@@ -261,7 +272,7 @@ h1, h2, h3 { line-height: 1.25; }
 }
 .section-head h2 { margin: 0; }
 .freshness {
-  font-size: .78rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -314,7 +325,7 @@ h1, h2, h3 { line-height: 1.25; }
   min-width: 24rem;
 }
 .hm-label {
-  font-size: .65rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -328,7 +339,7 @@ h1, h2, h3 { line-height: 1.25; }
   align-items: center;
   gap: .5rem;
   margin-top: .5rem;
-  font-size: .72rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
 }
 .hm-legend i {
@@ -345,7 +356,7 @@ th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(-
 tr:last-child td { border-bottom: 0; }
 th {
   color: var(--muted);
-  font-size: .72rem;
+  font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: .05em;
   font-weight: 600;
