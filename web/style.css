@@ -1,6 +1,7 @@
 /* RideWatch — mobile-first dark theme. */
 
 :root {
+  color-scheme: dark;
   --bg: #0b1120;
   --surface: #121b30;
   --surface-2: #1b2745;
@@ -123,8 +124,11 @@ h1, h2, h3 { line-height: 1.25; }
   border: 1px solid var(--border);
   border-radius: .6rem;
   padding: .6rem .8rem;
-  font: 14px/1.45 inherit;
+  /* `inherit` is invalid inside the font shorthand — the whole declaration
+     would be dropped and popups would fall back to MapLibre's 12px default. */
   font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
 }
 .maplibregl-popup-close-button { color: var(--muted); font-size: 1.1rem; }
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--surface); }
