@@ -10,7 +10,9 @@
 export function delayClass(d) {
   if (d === null || d === undefined) return 'unknown';
   if (d <= -60) return 'early';
-  if (d < 120) return 'ok';
+  // 90s, not 120: anything that LABELS as "2 min late" (rounds to 2) must
+  // also COLOR as 2–5 min late, or the same words show in two colors.
+  if (d < 90) return 'ok';
   if (d <= 300) return 'warn';
   return 'bad';
 }
