@@ -238,15 +238,15 @@ map.on('load', () => {
     source: 'stops',
     minzoom: STOPS_MIN_ZOOM,
     paint: {
-      'circle-radius': 4.5,
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 5, 17, 8],
       'circle-color': '#0b1120',
       'circle-stroke-width': 2,
       'circle-stroke-color': '#94a3b8',
     },
   }, 'vehicles'); // keep vehicles drawn above stop dots
 
-  map.on('click', 'vehicles', e => {
-    const p = e.features[0].properties;
+  function showVehiclePopup(feature) {
+    const p = feature.properties;
     const div = document.createElement('div');
     const route = document.createElement('div');
     route.className = 'popup-route';
@@ -256,15 +256,35 @@ map.on('load', () => {
     delay.textContent = p._delay_text;
     div.append(route, delay);
     new maplibregl.Popup({ closeButton: false, offset: 10 })
-      .setLngLat(e.features[0].geometry.coordinates)
+      .setLngLat(feature.geometry.coordinates)
       .setDOMContent(div)
       .addTo(map);
-  });
+  }
 
-  map.on('click', 'stops', e => {
-    const id = e.features[0].properties.stop_id;
+  // One padded click handler: a fingertip is ~24px, the dots are not.
+  // Vehicles win ties because they are drawn on top.
+  map.on('click', e => {
+    const pad = 12;
+    const box = [
+      [e.point.x - pad, e.point.y - pad],
+      [e.point.x + pad, e.point.y + pad],
+    ];
+    const vehicles = map.queryRenderedFeatures(box, { layers: ['vehicles'] });
+    if (vehicles.length) { showVehiclePopup(vehicles[0]); return; }
+    const stops = map.queryRenderedFeatures(box, { layers: ['stops'] });
+    const id = stops.length && stops[0].properties.stop_id;
     if (id) location.href = '/stop/' + encodeURIComponent(id);
   });
+
+  // Desktop nicety: stop names on hover, so navigating is not a gamble.
+  const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+  map.on('mouseenter', 'stops', e => {
+    const name = e.features[0].properties.name;
+    if (name) {
+      hoverPopup.setLngLat(e.features[0].geometry.coordinates).setText(name).addTo(map);
+    }
+  });
+  map.on('mouseleave', 'stops', () => hoverPopup.remove());
 
   for (const layer of ['vehicles', 'stops']) {
     map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -284,28 +304,53 @@ map.on('load', () => {
 
 const searchInput = document.getElementById('search');
 const searchResults = document.getElementById('search-results');
+let selIndex = -1;
 
 function hideResults() {
   searchResults.hidden = true;
   searchResults.textContent = '';
+  searchInput.setAttribute('aria-expanded', 'false');
+  searchInput.removeAttribute('aria-activedescendant');
+  selIndex = -1;
 }
 
+function setSelected(i) {
+  const items = searchResults.querySelectorAll('li');
+  if (!items.length) return;
+  selIndex = (i + items.length) % items.length;
+  items.forEach((li, idx) => li.classList.toggle('sel', idx === selIndex));
+  searchInput.setAttribute('aria-activedescendant', items[selIndex].id);
+  items[selIndex].scrollIntoView({ block: 'nearest' });
+}
+
+// A search for a stop opens its arrivals page — that is what searching means
+// on a transit app. The map stays for browsing.
 function showResults(stops) {
   searchResults.textContent = '';
+  selIndex = -1;
   if (!stops.length) { hideResults(); return; }
-  for (const s of stops.slice(0, 10)) {
-    const lat = num(pick(s, 'lat', 'Lat'));
-    const lon = num(pick(s, 'lon', 'Lon', 'lng'));
+  stops.slice(0, 10).forEach((s, i) => {
+    const id = pick(s, 'stop_id', 'StopID', 'id');
     const li = document.createElement('li');
-    li.textContent = pick(s, 'name', 'Name') || pick(s, 'stop_id', 'StopID') || '?';
+    li.id = 'search-option-' + i;
+    li.setAttribute('role', 'option');
+    const name = document.createElement('span');
+    name.className = 'result-name';
+    name.textContent = pick(s, 'name', 'Name') || id || '?';
+    const kind = document.createElement('span');
+    kind.className = 'result-kind';
+    const platform = pick(s, 'platform_code', 'PlatformCode');
+    kind.textContent = (num(pick(s, 'location_type', 'LocationType')) === 1 ? 'Station' : 'Stop') +
+      (platform ? ' · platform ' + platform : '');
+    li.append(name, kind);
     li.addEventListener('click', () => {
       hideResults();
-      searchInput.blur();
-      if (lat !== null && lon !== null) map.flyTo({ center: [lon, lat], zoom: 16 });
+      if (id) location.href = '/stop/' + encodeURIComponent(id);
     });
     searchResults.append(li);
-  }
+  });
   searchResults.hidden = false;
+  searchInput.setAttribute('aria-expanded', 'true');
 }
 
 const runSearch = debounce(async () => {
@@ -322,10 +367,13 @@ const runSearch = debounce(async () => {
 
 searchInput.addEventListener('input', runSearch);
 searchInput.addEventListener('keydown', e => {
-  if (e.key === 'Escape') hideResults();
-  if (e.key === 'Enter') {
-    const first = searchResults.querySelector('li');
-    if (first) first.click();
+  if (e.key === 'Escape') { hideResults(); return; }
+  if (searchResults.hidden) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(selIndex + 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(selIndex - 1); }
+  else if (e.key === 'Enter') {
+    const pickLi = searchResults.querySelector('li.sel') || searchResults.querySelector('li');
+    if (pickLi) pickLi.click();
   }
 });
 document.addEventListener('click', e => {

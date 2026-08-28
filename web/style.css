@@ -86,14 +86,20 @@ h1, h2, h3 { line-height: 1.25; }
   box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
 }
 #search-results li {
-  padding: .5rem .6rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: .6rem .6rem;
   border-radius: .4rem;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 #search-results li:hover, #search-results li.sel { background: var(--surface-2); }
+#search-results .result-name { overflow: hidden; text-overflow: ellipsis; }
+#search-results .result-kind { font-size: .72rem; color: var(--muted); flex: none; }
 
 .pill {
   display: flex;
