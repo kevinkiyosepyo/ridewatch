@@ -203,7 +203,22 @@ h1, h2, h3 { line-height: 1.25; }
 .arrival-main { flex: 1; min-width: 0; }
 .arrival-headsign { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arrival-sched { font-size: .85rem; }
-.delta { font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.arrival-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .1rem;
+  flex: none;
+}
+.due {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.delta { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: .8rem; }
 .delta.ok { color: var(--ok); }
 .delta.warn { color: var(--warn); }
 .delta.bad { color: var(--bad); }

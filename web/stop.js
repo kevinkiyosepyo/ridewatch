@@ -102,6 +102,12 @@ async function loadHeader() {
 
 /* ---- upcoming arrivals ---- */
 
+// dueLabel: minutes until the prediction — the number a waiting rider wants.
+function dueLabel(predicted, now) {
+  const mins = Math.round((predicted - now) / 60000);
+  return mins <= 0 ? 'Due' : mins + ' min';
+}
+
 function renderArrivals(events) {
   const box = document.getElementById('arrivals');
   box.textContent = '';
@@ -109,22 +115,29 @@ function renderArrivals(events) {
     box.append(el('p', 'muted', 'No upcoming arrivals right now.'));
     return;
   }
+  const now = new Date();
   for (const ev of events.slice(0, 12)) {
     const route = String(pick(ev, 'route_short_name', 'RouteShortName', 'route_id', 'RouteID') || '?');
     const headsign = String(pick(ev, 'headsign', 'Headsign') || '');
-    const sched = parseTime(pick(ev, 'scheduled_arrival', 'ScheduledArrival'));
+    const sched = parseTime(pick(ev, 'scheduled', 'scheduled_arrival', 'ScheduledArrival'));
+    const predicted = parseTime(pick(ev, 'predicted', 'predicted_arrival', 'PredictedArrival'));
     const delay = num(pick(ev, 'delay_secs', 'DelaySecs', 'delay'));
-
-    const cls = delayClass(delay);
-    const text = delayText(delay);
 
     const row = el('div', 'arrival');
     const main = el('div', 'arrival-main');
-    main.append(
-      el('div', 'arrival-headsign', headsign || route),
-      el('div', 'arrival-sched muted', sched ? 'scheduled ' + clockLabel(sched) : 'unscheduled')
+    main.append(el('div', 'arrival-headsign', headsign ? 'to ' + headsign : 'Route ' + route));
+    const bits = [];
+    if (predicted) bits.push('arriving ' + clockLabel(predicted));
+    bits.push(sched ? 'scheduled ' + clockLabel(sched) : 'extra trip');
+    main.append(el('div', 'arrival-sched muted', bits.join(' · ')));
+
+    const right = el('div', 'arrival-right');
+    right.append(
+      el('div', 'due', predicted ? dueLabel(predicted, now) : '—'),
+      el('span', 'delta ' + delayClass(delay), delayText(delay))
     );
-    row.append(el('span', 'badge', route), main, el('span', 'delta ' + cls, text));
+
+    row.append(el('span', 'badge', route), main, right);
     box.append(row);
   }
 }
