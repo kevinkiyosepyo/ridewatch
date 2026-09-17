@@ -3,6 +3,9 @@
 package api
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io/fs"
 	"log/slog"
@@ -32,15 +35,54 @@ type server struct {
 	q      domain.StopQueries
 	live   domain.LiveSource
 	subs   domain.SubscriptionStore
-	static fs.FS
+	assets map[string]staticAsset
 	log    *slog.Logger
+}
+
+// staticAsset is one embedded file, read and hashed once at startup. The
+// frontend is baked into the binary, so its bytes cannot change while the
+// process runs: holding them lets every request skip a read, and lets the
+// ETag be a plain content hash.
+type staticAsset struct {
+	data  []byte
+	etag  string
+	ctype string
+}
+
+// loadAssets walks the embedded tree once. A file that cannot be read is
+// skipped rather than fatal: a missing asset should 404, not refuse to boot.
+func loadAssets(fsys fs.FS, log *slog.Logger) map[string]staticAsset {
+	assets := make(map[string]staticAsset)
+	err := fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, rerr := fs.ReadFile(fsys, name)
+		if rerr != nil {
+			log.Warn("static asset unreadable, skipping", "name", name, "err", rerr)
+			return nil
+		}
+		sum := sha256.Sum256(data)
+		assets[name] = staticAsset{
+			data:  data,
+			etag:  `"` + hex.EncodeToString(sum[:16]) + `"`,
+			ctype: contentTypeFor(name),
+		}
+		return nil
+	})
+	if err != nil {
+		log.Warn("walking static assets", "err", err)
+	}
+	return assets
 }
 
 // New builds the complete HTTP handler: JSON API, healthz, Prometheus metrics,
 // and the static frontend (SPA fallback for extensionless paths).
 func New(cfg config.Config, q domain.StopQueries, live domain.LiveSource,
 	subs domain.SubscriptionStore, static fs.FS) http.Handler {
-	s := &server{cfg: cfg, q: q, live: live, subs: subs, static: static, log: slog.Default()}
+	log := slog.Default()
+	s := &server{cfg: cfg, q: q, live: live, subs: subs,
+		assets: loadAssets(static, log), log: log}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/vehicles", s.handleVehicles)
@@ -170,17 +212,25 @@ func contentTypeFor(name string) string {
 	return "application/octet-stream"
 }
 
+// serveStaticFile writes one embedded asset with a content ETag. Filenames are
+// unhashed (app.js, not app.9f3c.js), so the assets must never be cached
+// blind: no-cache means "revalidate every time", and the ETag makes that
+// revalidation a 304 instead of a re-download — the difference between a few
+// hundred bytes and the 800 KB MapLibre bundle on a repeat visit.
+//
+// http.ServeContent handles If-None-Match, HEAD, and range requests; the zero
+// modTime keeps it from inventing a Last-Modified, since embedded files have
+// no meaningful timestamp.
 func (s *server) serveStaticFile(w http.ResponseWriter, r *http.Request, name string) {
-	data, err := fs.ReadFile(s.static, name)
-	if err != nil {
+	a, ok := s.assets[name]
+	if !ok {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
-	w.Header().Set("Content-Type", contentTypeFor(name))
-	w.WriteHeader(http.StatusOK)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write(data)
-	}
+	w.Header().Set("Content-Type", a.ctype)
+	w.Header().Set("ETag", a.etag)
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(a.data))
 }
 
 // handleStopPage serves the stop detail page; the id in the URL is read by
@@ -204,7 +254,7 @@ func (s *server) handleStatic(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
-	if info, err := fs.Stat(s.static, name); err != nil || info.IsDir() {
+	if _, ok := s.assets[name]; !ok {
 		if path.Ext(name) == "" {
 			s.serveStaticFile(w, r, "index.html")
 			return

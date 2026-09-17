@@ -748,3 +748,80 @@ func TestPanicRecoversTo500(t *testing.T) {
 		t.Errorf("body = %v", body)
 	}
 }
+
+// TestStaticRevalidation pins the caching contract for embedded assets.
+//
+// The frontend ships unhashed filenames (app.js, vendor/maplibre.js), so a
+// long max-age would strand riders on a stale bundle after a deploy. The
+// honest policy is revalidate-always plus a content ETag: a repeat visit
+// spends one conditional request instead of re-downloading the payload —
+// which for the real vendored MapLibre bundle is 803 KB a page load.
+func TestStaticRevalidation(t *testing.T) {
+	q, live, subs := defaultFakes()
+	srv := newTestServer(t, q, live, subs)
+
+	for _, path := range []string{"/", "/index.html", "/app.js", "/style.css", "/vendor/maplibre.js", "/stop/S1"} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		etag := resp.Header.Get("ETag")
+		if etag == "" {
+			t.Errorf("%s: no ETag; repeat visits re-download the whole asset", path)
+			continue
+		}
+		if !strings.HasPrefix(etag, `"`) || !strings.HasSuffix(etag, `"`) {
+			t.Errorf("%s: ETag = %s, want a quoted strong validator", path, etag)
+		}
+		if cc := resp.Header.Get("Cache-Control"); !strings.Contains(cc, "no-cache") {
+			t.Errorf("%s: Cache-Control = %q, want no-cache so a deploy is picked up", path, cc)
+		}
+
+		// The conditional request is the whole point: 304, no body.
+		req, _ := http.NewRequest("GET", srv.URL+path, nil)
+		req.Header.Set("If-None-Match", etag)
+		cond, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		condBody, _ := io.ReadAll(cond.Body)
+		cond.Body.Close()
+		if cond.StatusCode != http.StatusNotModified {
+			t.Errorf("%s: conditional GET = %d, want 304 (resent %d bytes)", path, cond.StatusCode, len(body))
+		}
+		if len(condBody) != 0 {
+			t.Errorf("%s: 304 carried a %d-byte body", path, len(condBody))
+		}
+	}
+
+	// A stale validator must still serve the new bytes.
+	req, _ := http.NewRequest("GET", srv.URL+"/app.js", nil)
+	req.Header.Set("If-None-Match", `"stale"`)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(string(body), "console") {
+		t.Errorf("stale If-None-Match = %d %q, want 200 with the asset", resp.StatusCode, body)
+	}
+
+	// Distinct assets must not collide on one validator.
+	seen := map[string]string{}
+	for _, path := range []string{"/index.html", "/app.js", "/style.css", "/vendor/maplibre.js"} {
+		r, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+		et := r.Header.Get("ETag")
+		if prev, dup := seen[et]; dup {
+			t.Errorf("%s and %s share ETag %s", path, prev, et)
+		}
+		seen[et] = path
+	}
+}

@@ -10,6 +10,11 @@ metadata:
 data:
   Caddyfile: |
     {$DOMAIN} {
+      # The frontend is served uncompressed by the app (embedded bytes, no
+      # compressor in the Go handler), so the edge does it: the vendored
+      # MapLibre bundle is ~800 KB of JS that gzips to roughly a quarter of
+      # that. Repeat visits are already handled by the app's ETags.
+      encode zstd gzip
       @metrics path /metrics
       respond @metrics 403
       reverse_proxy ridewatch:8080
