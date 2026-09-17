@@ -29,6 +29,30 @@ groups:
             timestamp (curl the feed URL and inspect the header); if not, read
             the poller logs.
 
+      # The archive is the system of record and it only grows between nightly
+      # prunes. Measured against the MBTA feeds it accumulates ~1.3 GB/day, so
+      # at the default RAW_RETENTION_DAYS=30 it settles near 40 GB — sized in
+      # deploy/k8s/app.yaml as a 50Gi volume. Warn at 80% of that, which at the
+      # observed rate leaves roughly a week before the volume is full and
+      # archiving starts failing.
+      - alert: RawArchiveVolumeFilling
+        expr: ridewatch_raw_archive_size_bytes > 40 * 1024 * 1024 * 1024
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Raw archive is filling its volume"
+          description: >-
+            The raw archive is {{ $value | humanize1024 }}B on disk, past 80%
+            of the 50Gi volume it lives on. When the volume fills, every poll
+            fails to archive and the system of record stops growing.
+          runbook: >-
+            Confirm the nightly prune is running (log line "pruned raw
+            archive", ~an hour after ROLLUP_HOUR_UTC). If it is, the feeds are
+            simply bigger than the sizing assumed: either lower
+            RAW_RETENTION_DAYS or grow the ridewatch-data PVC. If it is not,
+            check whether the retention block errored in the logs.
+
       - alert: NoSuccessfulPolls
         expr: sum by (feed) (rate(ridewatch_polls_total{outcome="ok"}[10m])) == 0
         for: 10m

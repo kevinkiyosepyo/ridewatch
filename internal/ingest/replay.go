@@ -152,6 +152,37 @@ func readBlob(root string, b blobRef) (*domain.Snapshot, error) {
 	return snap, nil
 }
 
+// ArchiveSize totals the bytes currently on disk under archiveDir, counting
+// the whole tree rather than just prunable blobs: the static GTFS zips live
+// here too and are never pruned, but they occupy the same volume. A missing
+// directory is 0, not an error -- nothing has been archived yet.
+//
+// This is the number that has to fit the volume, and the one the
+// ridewatch_raw_archive_size_bytes gauge reports; the existing
+// raw_archive_bytes_total counter measures write rate and never goes down,
+// so it cannot answer "will this fill the disk".
+func ArchiveSize(archiveDir string) (int64, error) {
+	if _, err := os.Stat(archiveDir); os.IsNotExist(err) {
+		return 0, nil
+	}
+	var total int64
+	err := fs.WalkDir(os.DirFS(archiveDir), ".", func(rel string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		info, ierr := d.Info()
+		if ierr != nil {
+			return nil // raced with a prune; it is no longer taking up space
+		}
+		total += info.Size()
+		return nil
+	})
+	if err != nil {
+		return total, fmt.Errorf("archive size walk %s: %w", archiveDir, err)
+	}
+	return total, nil
+}
+
 // PruneArchive removes archived blobs whose path-derived timestamp is before
 // olderThan, then removes directories left empty. Returns files removed.
 func PruneArchive(archiveDir string, olderThan time.Time) (int, error) {

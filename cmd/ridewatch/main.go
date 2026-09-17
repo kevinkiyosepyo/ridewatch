@@ -279,6 +279,7 @@ func runServe(ctx context.Context) error {
 		return err
 	}
 	updateScheduleAge(ctx, st)
+	updateArchiveSize(cfg.ArchiveDir)
 
 	engine := reconcile.NewEngine(st, st, reconcile.Options{FinalizeGrace: cfg.FinalizeGrace})
 
@@ -415,9 +416,22 @@ func startNightly(ctx context.Context, wg *sync.WaitGroup, cfg config.Config, st
 					slog.Info("pruned raw poll index", "rows", rows)
 				}
 			}
+			updateArchiveSize(cfg.ArchiveDir)
 			updateScheduleAge(ctx, st)
 		}
 	})
+}
+
+// updateArchiveSize refreshes the on-disk archive gauge. Walking the tree is
+// cheap next to the nightly prune that precedes it, and a failure here is
+// worth a line in the log but nothing more -- it is an observation, not work.
+func updateArchiveSize(archiveDir string) {
+	size, err := ingest.ArchiveSize(archiveDir)
+	if err != nil {
+		slog.Warn("archive size unavailable", "err", err)
+		return
+	}
+	metrics.RawArchiveSize.Set(float64(size))
 }
 
 func updateScheduleAge(ctx context.Context, st *store.Store) {

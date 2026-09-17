@@ -21,6 +21,18 @@ data:
   # POLL_INTERVAL: 15s
 ---
 # Raw GTFS-RT archive: the system of record for replays.
+#
+# Sizing, measured against the MBTA feeds at the default 15s poll interval:
+# TripUpdates writes ~1.2 GB/day compressed and VehiclePositions ~0.1 GB/day,
+# so the archive settles at roughly 40 GB under the default 30-day
+# RAW_RETENTION_DAYS, plus ~100 MB of static GTFS zips. 50Gi leaves headroom
+# for a busier agency; ridewatch_raw_archive_size_bytes reports the real
+# number and RawArchiveVolumeFilling alerts before it runs out.
+#
+# A smaller feed, or a shorter RAW_RETENTION_DAYS, wants a smaller volume:
+# these two numbers have to be chosen together. local-path carves from the
+# node's boot volume (deploy/tofu: boot_volume_gbs, default 100), which also
+# hosts the 5Gi Postgres, 2Gi Prometheus, and 1Gi Caddy claims.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -31,7 +43,7 @@ spec:
   storageClassName: local-path
   resources:
     requests:
-      storage: 2Gi
+      storage: 50Gi
 ---
 apiVersion: apps/v1
 kind: Deployment

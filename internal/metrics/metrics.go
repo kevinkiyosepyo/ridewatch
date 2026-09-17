@@ -91,4 +91,12 @@ var (
 		Name: "ridewatch_raw_archive_bytes_total",
 		Help: "Compressed bytes written to the raw archive.",
 	})
+
+	// The counter above only ever climbs, so it cannot say whether the volume
+	// is about to fill. This gauge is the current on-disk total, refreshed at
+	// startup and after each nightly prune.
+	RawArchiveSize = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "ridewatch_raw_archive_size_bytes",
+		Help: "Bytes currently on disk in the raw archive, including static GTFS zips.",
+	})
 )
