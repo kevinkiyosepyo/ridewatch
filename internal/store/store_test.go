@@ -477,4 +477,26 @@ func TestRawArchiveIndex(t *testing.T) {
 	if sha, err := s.LastSHA(ctx, domain.FeedVehiclePositions); err != nil || sha != "" {
 		t.Errorf("other feed LastSHA = %q, %v; want empty", sha, err)
 	}
+
+	// Pruning follows the blobs on disk: rows older than the cutoff go, the
+	// rest stay, and the surviving row is still the one LastSHA reports.
+	if err := s.RecordRawPoll(ctx, domain.FeedVehiclePositions, at.AddDate(0, 0, -40), 0, "old", "vehicle_positions/z", 9, 4); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	rows, err := s.PruneRawPolls(ctx, at.Add(10*time.Second))
+	if err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+	if rows != 2 { // the 40-day-old vehicle_positions row and the first trip_updates row
+		t.Errorf("PruneRawPolls deleted %d rows; want 2", rows)
+	}
+	if sha, err := s.LastSHA(ctx, domain.FeedTripUpdates); err != nil || sha != "bbb" {
+		t.Errorf("LastSHA after prune = %q, %v; want bbb", sha, err)
+	}
+	if sha, err := s.LastSHA(ctx, domain.FeedVehiclePositions); err != nil || sha != "" {
+		t.Errorf("pruned feed LastSHA = %q, %v; want empty", sha, err)
+	}
+	if rows, err := s.PruneRawPolls(ctx, at.Add(10*time.Second)); err != nil || rows != 0 {
+		t.Errorf("second prune = %d, %v; want 0 rows", rows, err)
+	}
 }

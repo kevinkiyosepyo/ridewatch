@@ -43,3 +43,15 @@ func (s *Store) LastSHA(ctx context.Context, feed domain.Feed) (string, error) {
 	}
 	return sha, nil
 }
+
+// PruneRawPolls deletes index rows for blobs archived before olderThan, and
+// returns how many went. It pairs with ingest.PruneArchive, which removes the
+// blobs themselves: without it the index keeps rows pointing at files that no
+// longer exist, and grows without bound.
+func (s *Store) PruneRawPolls(ctx context.Context, olderThan time.Time) (int64, error) {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM raw_polls WHERE polled_at < $1`, olderThan.UTC())
+	if err != nil {
+		return 0, fmt.Errorf("store: prune raw polls: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}

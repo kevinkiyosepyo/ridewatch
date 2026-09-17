@@ -399,11 +399,20 @@ func startNightly(ctx context.Context, wg *sync.WaitGroup, cfg config.Config, st
 				slog.Error("drop old partitions failed", "err", err)
 			}
 			if cfg.RawRetentionDays > 0 {
-				removed, err := ingest.PruneArchive(cfg.ArchiveDir, now.AddDate(0, 0, -cfg.RawRetentionDays))
+				cutoff := now.AddDate(0, 0, -cfg.RawRetentionDays)
+				removed, err := ingest.PruneArchive(cfg.ArchiveDir, cutoff)
 				if err != nil {
 					slog.Error("prune raw archive failed", "err", err)
 				} else if removed > 0 {
 					slog.Info("pruned raw archive", "files", removed)
+				}
+				// The index follows the blobs: same cutoff, so a row never
+				// outlives the file it points at.
+				rows, err := st.PruneRawPolls(ctx, cutoff)
+				if err != nil {
+					slog.Error("prune raw poll index failed", "err", err)
+				} else if rows > 0 {
+					slog.Info("pruned raw poll index", "rows", rows)
 				}
 			}
 			updateScheduleAge(ctx, st)
