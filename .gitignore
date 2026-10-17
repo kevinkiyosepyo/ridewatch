@@ -13,3 +13,4 @@ deploy/k8s/secrets.yaml
 !example.tfvars
 .DS_Store
 coverage.out
+.gstack/
